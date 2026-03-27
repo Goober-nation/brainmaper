@@ -55,14 +55,16 @@ func main() {
 			handlers.HandleAsk(w, r)
 			return
 		}
-		
-		// NEW ROUTES: Edge Manipulation
 		if r.Method == "POST" && r.URL.Path == "/api/edges" {
 			handlers.HandleCreateEdge(w, r)
 			return
 		}
 		if r.Method == "DELETE" && strings.HasPrefix(r.URL.Path, "/api/edges/") {
 			handlers.HandleDeleteEdge(w, r)
+			return
+		}
+		if r.Method == "GET" && r.URL.Path == "/api/debug/models" {
+			handlers.HandleListModels(w, r)
 			return
 		}
 
