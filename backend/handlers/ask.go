@@ -14,10 +14,38 @@ import (
 	"github.com/google/generative-ai-go/genai"
 	"github.com/google/uuid"
 	"google.golang.org/api/option"
+	"google.golang.org/api/iterator"
 )
 
 type AskRequest struct {
 	Question string `json:"question"`
+}
+
+func HandleListModels(w http.ResponseWriter, r *http.Request) {
+    ctx := context.Background()
+    client, err := genai.NewClient(ctx, option.WithAPIKey(os.Getenv("GEMINI_API_KEY")))
+    if err != nil {
+        http.Error(w, err.Error(), 500)
+        return
+    }
+    defer client.Close()
+
+    iter := client.ListModels(ctx)
+    fmt.Println("--- AVAILABLE MODELS ---")
+    for {
+        m, err := iter.Next()
+        if err == iterator.Done {
+            break
+        }
+        if err != nil {
+            fmt.Printf("Error iterating: %v\n", err)
+            break
+        }
+        // This prints the exact string you need to use in GenerateContent
+        fmt.Printf("Model Name: %s", m)
+    }
+    fmt.Println("-------------------------")
+    w.Write([]byte("Check your Docker logs for the list!"))
 }
 
 func HandleAsk(w http.ResponseWriter, r *http.Request) {
@@ -77,8 +105,8 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 	}
 	defer client.Close()
 
-	model := client.GenerativeModel("gemini-2.5-flash")	
-	
+	model := client.GenerativeModel("gemini-3.1-flash-lite-preview")
+
 	// STOP IGNORING THE ERROR HERE
 	resp, err := model.GenerateContent(ctx, genai.Text(fullPrompt))
 	if err != nil {
@@ -101,11 +129,14 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tx, _ := database.Conn.Begin(ctx)
+	tx, _ := database.Conn.Begin(ctx)	
 	defer tx.Rollback(ctx)
+	var px, py float64
+	database.Conn.QueryRow(ctx, "SELECT pos_x, pos_y FROM nodes WHERE id = $1", targetNodeID).Scan(&px, &py)
 
 	newNodeID := uuid.New()
-	tx.Exec(ctx, "INSERT INTO nodes (id, map_id, type, query_text, response_text) VALUES ($1, $2, 'q_and_a', $3, $4)", newNodeID, mapID, req.Question, aiAnswer)
+	newY := py + 250 
+	tx.Exec(ctx, "INSERT INTO nodes (id, map_id, type, query_text, response_text, pos_x, pos_y) VALUES ($1, $2, 'q_and_a', $3, $4, $5, $6)", newNodeID, mapID, req.Question, aiAnswer, px, newY)
 	tx.Exec(ctx, "INSERT INTO edges (id, source_node_id, target_node_id) VALUES ($1, $2, $3)", uuid.New(), targetNodeID, newNodeID)
 	tx.Commit(ctx)
 

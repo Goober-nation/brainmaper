@@ -92,7 +92,7 @@ func HandleGetMap(w http.ResponseWriter, r *http.Request) {
 		
 		label := responseText
 		if queryText != nil {
-			label = "Q: " + *queryText + "\nA: " + responseText[:min(50, len(responseText))] + "..."
+			label = "Q: " + *queryText + "\nA: " + responseText 
 		}
 
 		nodes = append(nodes, map[string]interface{}{
