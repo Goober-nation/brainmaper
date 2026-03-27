@@ -37,8 +37,18 @@ export default function App() {
     // Add layout coordinates so they don't stack on top of each other
     const layoutNodes = (data.nodes || []).map((n, i) => ({
       ...n,
-      position: { x: 250, y: i * 150 }, // Simple vertical cascade for now
-      style: { padding: 10, border: '1px solid #333', borderRadius: 5, background: '#fff', color: '#000', width: 250 }
+      position: { x: 250, y: i * 200 }, // Increased Y spacing slightly
+      style: { 
+        padding: '15px', 
+        border: '2px solid #333', 
+        borderRadius: '8px', 
+        background: '#fff', 
+        color: '#222', 
+        minWidth: '200px',
+        maxWidth: '400px', // Allows node to grow but stops it from getting absurdly wide
+        wordWrap: 'break-word',
+        whiteSpace: 'pre-wrap' // Honors line breaks in the AI's response
+      }
     }));
     
     setNodes(layoutNodes);
