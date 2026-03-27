@@ -80,14 +80,15 @@ func HandleGetMap(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
 	// 1. Fetch Nodes
-	nodeRows, _ := database.Conn.Query(ctx, "SELECT id, type, query_text, response_text FROM nodes WHERE map_id = $1", mapIDStr)
+	nodeRows, _ := database.Conn.Query(ctx, "SELECT id, type, query_text, response_text, pos_x, pos_y FROM nodes WHERE map_id = $1", mapIDStr)	
 	defer nodeRows.Close()
 
 	var nodes []map[string]interface{}
 	for nodeRows.Next() {
 		var id, nodeType, responseText string
 		var queryText *string
-		nodeRows.Scan(&id, &nodeType, &queryText, &responseText)
+		var posX, posY float64
+		nodeRows.Scan(&id, &nodeType, &queryText, &responseText, &posX, &posY)
 		
 		label := responseText
 		if queryText != nil {
@@ -97,6 +98,8 @@ func HandleGetMap(w http.ResponseWriter, r *http.Request) {
 		nodes = append(nodes, map[string]interface{}{
 			"id": id,
 			"type": nodeType,
+			"pos_x": posX,
+			"pos_y": posY,
 			"data": map[string]interface{}{"label": label},
 		})
 	}
