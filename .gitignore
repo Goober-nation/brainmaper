@@ -1,3 +1,32 @@
-/.env
-/.gitignore
-go.sum
+# Security / Secrets
+.env
+
+# Go Backend
+/backend/main
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/backend/go-build/
+
+# React Frontend
+/frontend/node_modules/
+/frontend/dist/
+/frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+
+# Docker
+docker-compose.override.yml
+.docker/
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
