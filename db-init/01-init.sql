@@ -18,12 +18,14 @@ CREATE TABLE brainmaps (
 CREATE TYPE node_type AS ENUM ('core', 'q_and_a', 'summary');
 
 CREATE TABLE nodes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    map_id UUID REFERENCES brainmaps(id) ON DELETE CASCADE NOT NULL,
-    type node_type NOT NULL,
-    query_text TEXT,     -- Nullable, as the 'core' node won't have a user query
-    response_text TEXT NOT NULL, -- Holds the AI response, the core material, or the summary
-    is_collapsed BOOLEAN DEFAULT FALSE,
+    id UUID PRIMARY KEY,
+    map_id UUID REFERENCES brainmaps(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    query_text TEXT,
+    response_text TEXT,
+    pos_x FLOAT DEFAULT 250,        -- ADDED THIS
+    pos_y FLOAT DEFAULT 250,        -- ADDED THIS
+    is_unplaced BOOLEAN DEFAULT FALSE, -- ADDED THIS
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -126,6 +126,25 @@ func HandleGetMap(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func HandleListMaps(w http.ResponseWriter, r *http.Request) {
+	rows, err := database.Conn.Query(context.Background(), "SELECT id, title FROM brainmaps ORDER BY created_at DESC")
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	defer rows.Close()
+
+	var maps []map[string]string
+	for rows.Next() {
+		var id, title string
+		rows.Scan(&id, &title)
+		maps = append(maps, map[string]string{"id": id, "title": title})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(maps)
+}
+
 func min(a, b int) int {
 	if a < b { return a }
 	return b

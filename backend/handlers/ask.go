@@ -9,116 +9,61 @@ import (
 	"strings"
 
 	"brainmap-backend/database"
-	"brainmap-backend/models"
 
 	"github.com/google/generative-ai-go/genai"
 	"github.com/google/uuid"
 	"google.golang.org/api/option"
-	"google.golang.org/api/iterator"
 )
 
 type AskRequest struct {
-	Question string `json:"question"`
-}
-
-func HandleListModels(w http.ResponseWriter, r *http.Request) {
-    ctx := context.Background()
-    client, err := genai.NewClient(ctx, option.WithAPIKey(os.Getenv("GEMINI_API_KEY")))
-    if err != nil {
-        http.Error(w, err.Error(), 500)
-        return
-    }
-    defer client.Close()
-
-    iter := client.ListModels(ctx)
-    fmt.Println("--- AVAILABLE MODELS ---")
-    for {
-        m, err := iter.Next()
-        if err == iterator.Done {
-            break
-        }
-        if err != nil {
-            fmt.Printf("Error iterating: %v\n", err)
-            break
-        }
-        // This prints the exact string you need to use in GenerateContent
-        fmt.Printf("Model Name: %s", m)
-    }
-    fmt.Println("-------------------------")
-    w.Write([]byte("Check your Docker logs for the list!"))
+	ParentNodeID *uuid.UUID `json:"parent_node_id"` // Nullable
+	Question     string     `json:"question"`
+	PosX         float64    `json:"pos_x"`
+	PosY         float64    `json:"pos_y"`
+	IsUnplaced   bool       `json:"is_unplaced"`
 }
 
 func HandleAsk(w http.ResponseWriter, r *http.Request) {
+	// Extract Map ID from /api/maps/{map_id}/ask
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 4 {
-		http.Error(w, "Invalid URL path", http.StatusBadRequest)
+		http.Error(w, "Invalid URL", http.StatusBadRequest)
 		return
 	}
-	targetNodeIDStr := pathParts[3]
-	targetNodeID, _ := uuid.Parse(targetNodeIDStr)
+	mapID := pathParts[3]
 
 	var req AskRequest
-	json.NewDecoder(r.Body).Decode(&req)
-
-	ctx := context.Background()
-
-	query := `
-		WITH RECURSIVE branch_path AS (
-			SELECT id, map_id, type, query_text, response_text, 1 as depth
-			FROM nodes WHERE id = $1
-			UNION ALL
-			SELECT n.id, n.map_id, n.type, n.query_text, n.response_text, bp.depth + 1
-			FROM nodes n
-			JOIN edges e ON n.id = e.source_node_id
-			JOIN branch_path bp ON e.target_node_id = bp.id
-			WHERE bp.depth < 5
-		)
-		SELECT type, query_text, response_text, map_id FROM branch_path ORDER BY depth DESC;
-	`
-	
-	rows, _ := database.Conn.Query(ctx, query, targetNodeID)
-	defer rows.Close()
-
-	var mapID uuid.UUID
-	promptBuilder := strings.Builder{}
-	for rows.Next() {
-		var nodeType string
-		var queryText *string
-		var responseText string
-		rows.Scan(&nodeType, &queryText, &responseText, &mapID)
-		if queryText != nil {
-			promptBuilder.WriteString(fmt.Sprintf("User: %s\n", *queryText))
-		}
-		promptBuilder.WriteString(fmt.Sprintf("AI: %s\n\n", responseText))
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid body", http.StatusBadRequest)
+		return
 	}
 
-	var coreMaterial string
-	database.Conn.QueryRow(ctx, "SELECT core_material FROM brainmaps WHERE id = $1", mapID).Scan(&coreMaterial)
+	ctx := context.Background()
+	fullPrompt := req.Question
 
-	fullPrompt := fmt.Sprintf("Core Material: %s\n\nHistory:\n%s\nNew Question: %s", coreMaterial, promptBuilder.String(), req.Question)
+	// 1. If there is a parent, fetch its text to give the AI context
+	if req.ParentNodeID != nil {
+		var parentText string
+		err := database.Conn.QueryRow(ctx, "SELECT response_text FROM nodes WHERE id = $1", req.ParentNodeID).Scan(&parentText)
+		if err == nil {
+			fullPrompt = fmt.Sprintf("Context: %s\n\nUser Question: %s", parentText, req.Question)
+		}
+	}
 
+	// 2. Ask Gemini
 	client, err := genai.NewClient(ctx, option.WithAPIKey(os.Getenv("GEMINI_API_KEY")))
 	if err != nil {
-		fmt.Printf("GEMINI CLIENT ERROR: %v\n", err)
-		http.Error(w, "Failed to initialize AI client", http.StatusInternalServerError)
+		http.Error(w, "AI Client Error", 500)
 		return
 	}
 	defer client.Close()
 
+	// model_name := os.Getenv("GEMINI_MODEL")
+	// model := client.GenerativeModel(model_name)
 	model := client.GenerativeModel("gemini-3.1-flash-lite-preview")
-
-	// STOP IGNORING THE ERROR HERE
 	resp, err := model.GenerateContent(ctx, genai.Text(fullPrompt))
-	if err != nil {
-		fmt.Printf("GEMINI API ERROR: %v\n", err) // This will tell us exactly what's wrong!
-		http.Error(w, "Failed to get response from AI", http.StatusInternalServerError)
-		return
-	}
-
-	// Make sure the AI actually sent something back before trying to read it
-	if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
-		fmt.Println("GEMINI API ERROR: AI returned an empty response")
-		http.Error(w, "AI returned an empty response", http.StatusInternalServerError)
+	if err != nil || len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
+		http.Error(w, "AI Generation Failed", 500)
 		return
 	}
 
@@ -129,17 +74,25 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tx, _ := database.Conn.Begin(ctx)	
+	// 3. Database Transaction
+	tx, _ := database.Conn.Begin(ctx)
 	defer tx.Rollback(ctx)
-	var px, py float64
-	database.Conn.QueryRow(ctx, "SELECT pos_x, pos_y FROM nodes WHERE id = $1", targetNodeID).Scan(&px, &py)
 
 	newNodeID := uuid.New()
-	newY := py + 250 
-	tx.Exec(ctx, "INSERT INTO nodes (id, map_id, type, query_text, response_text, pos_x, pos_y) VALUES ($1, $2, 'q_and_a', $3, $4, $5, $6)", newNodeID, mapID, req.Question, aiAnswer, px, newY)
-	tx.Exec(ctx, "INSERT INTO edges (id, source_node_id, target_node_id) VALUES ($1, $2, $3)", uuid.New(), targetNodeID, newNodeID)
+	
+	// Insert Node
+	_, err = tx.Exec(ctx,
+		"INSERT INTO nodes (id, map_id, type, query_text, response_text, pos_x, pos_y, is_unplaced) VALUES ($1, $2, 'q_and_a', $3, $4, $5, $6, $7)",
+		newNodeID, mapID, req.Question, aiAnswer, req.PosX, req.PosY, req.IsUnplaced)
+
+	// If it has a parent AND it's placed on the canvas, draw the Edge
+	if req.ParentNodeID != nil && !req.IsUnplaced {
+		edgeID := uuid.New()
+		tx.Exec(ctx, "INSERT INTO edges (id, source_node_id, target_node_id) VALUES ($1, $2, $3)", edgeID, req.ParentNodeID, newNodeID)
+	}
+
 	tx.Commit(ctx)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.Node{ID: newNodeID, MapID: mapID, Type: "q_and_a", ResponseText: aiAnswer})
+	json.NewEncoder(w).Encode(map[string]interface{}{"id": newNodeID})
 }
