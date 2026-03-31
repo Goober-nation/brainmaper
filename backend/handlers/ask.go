@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
@@ -22,6 +23,7 @@ type AskRequest struct {
 	PosX         float64  `json:"pos_x"`
 	PosY         float64  `json:"pos_y"`
 	IsUnplaced   bool     `json:"is_unplaced"`
+	MediaBase64  string   `json:"media_base64"`
 }
 
 func HandleAsk(w http.ResponseWriter, r *http.Request) {
@@ -113,10 +115,35 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 	}
 	defer client.Close()
 
-	// Use the dynamic model name here!
-	model := client.GenerativeModel(modelName) 
-	resp, err := model.GenerateContent(ctx, genai.Text(fullPrompt))
+	model := client.GenerativeModel(modelName)
 
+	// Create a slice of "Parts" (Multimodal payload)
+	parts := []genai.Part{genai.Text(fullPrompt)}
+
+	// Dynamically handle Images OR PDFs
+	if req.MediaBase64 != "" {
+		b64Parts := strings.SplitN(req.MediaBase64, ",", 2)
+		if len(b64Parts) == 2 {
+			mimePart := b64Parts[0] // e.g., "data:application/pdf;base64"
+			
+			// Determine the exact MIME type
+			mimeType := "image/jpeg" // default
+			if strings.Contains(mimePart, "image/png") { mimeType = "image/png" }
+			if strings.Contains(mimePart, "image/webp") { mimeType = "image/webp" }
+			if strings.Contains(mimePart, "application/pdf") { mimeType = "application/pdf" }
+
+			fileData, _ := base64.StdEncoding.DecodeString(b64Parts[1])
+			
+			// genai.Blob allows us to pass raw files dynamically
+			parts = append(parts, genai.Blob{
+				MIMEType: mimeType,
+				Data:     fileData,
+			})
+		}
+	}
+
+	// Pass the multi-part slice to Gemini
+	resp, err := model.GenerateContent(ctx, parts...)
 	if err != nil || len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
 		http.Error(w, "AI Generation Failed", 500)
 		return
