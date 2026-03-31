@@ -71,6 +71,10 @@ func main() {
     		handlers.HandleListMaps(w, r)
     		return
 		}
+		if r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/joiner") {
+			handlers.HandleCreateJoiner(w, r)
+			return
+		}
 
 		http.NotFound(w, r)
 	}

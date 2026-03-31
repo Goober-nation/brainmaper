@@ -81,3 +81,29 @@ func HandleDeleteEdge(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
+type JoinerRequest struct {
+	PosX float64 `json:"pos_x"`
+	PosY float64 `json:"pos_y"`
+}
+
+func HandleCreateJoiner(w http.ResponseWriter, r *http.Request) {
+	pathParts := strings.Split(r.URL.Path, "/")
+	mapID := pathParts[3] // /api/maps/{map_id}/joiner
+
+	var req JoinerRequest
+	json.NewDecoder(r.Body).Decode(&req)
+
+	newNodeID := uuid.New()
+	_, err := database.Conn.Exec(context.Background(),
+		"INSERT INTO nodes (id, map_id, type, pos_x, pos_y) VALUES ($1, $2, 'joiner', $3, $4)",
+		newNodeID, mapID, req.PosX, req.PosY)
+
+	if err != nil {
+		http.Error(w, "Failed to create joiner", 500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"id": newNodeID})
+}

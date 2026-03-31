@@ -71,41 +71,37 @@ func HandleCreateMap(w http.ResponseWriter, r *http.Request) {
 
 func HandleGetMap(w http.ResponseWriter, r *http.Request) {
 	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 4 {
-		http.Error(w, "Invalid URL path", http.StatusBadRequest)
-		return
-	}
-	mapIDStr := pathParts[3]
+	mapID := pathParts[3]
 
 	ctx := context.Background()
 
-	// 1. Fetch Nodes
-	nodeRows, _ := database.Conn.Query(ctx, "SELECT id, type, query_text, response_text, pos_x, pos_y FROM nodes WHERE map_id = $1", mapIDStr)	
+	// 1. Fetch Nodes (Now explicitly grabbing query_text, response_text, and image_data)
+	nodeRows, err := database.Conn.Query(ctx, "SELECT id, type, pos_x, pos_y, is_unplaced, COALESCE(query_text, ''), COALESCE(response_text, ''), COALESCE(image_data, '') FROM nodes WHERE map_id = $1", mapID)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
 	defer nodeRows.Close()
 
 	var nodes []map[string]interface{}
 	for nodeRows.Next() {
-		var id, nodeType, responseText string
-		var queryText *string
+		var id, nType, qText, rText, imgData string
 		var posX, posY float64
-		nodeRows.Scan(&id, &nodeType, &queryText, &responseText, &posX, &posY)
-		
-		label := responseText
-		if queryText != nil {
-			label = "Q: " + *queryText + "\nA: " + responseText 
-		}
+		var isUnplaced bool
+		nodeRows.Scan(&id, &nType, &posX, &posY, &isUnplaced, &qText, &rText, &imgData)
 
 		nodes = append(nodes, map[string]interface{}{
-			"id": id,
-			"type": nodeType,
-			"pos_x": posX,
-			"pos_y": posY,
-			"data": map[string]interface{}{"label": label},
+			"id": id, "type": nType, "pos_x": posX, "pos_y": posY, "is_unplaced": isUnplaced,
+			"data": map[string]interface{}{
+				"question": qText,
+				"answer": rText,
+				"media_base64": imgData,
+			},
 		})
 	}
 
 	// 2. Fetch Edges
-	edgeRows, _ := database.Conn.Query(ctx, "SELECT id, source_node_id, target_node_id FROM edges WHERE source_node_id IN (SELECT id FROM nodes WHERE map_id = $1)", mapIDStr)
+	edgeRows, _ := database.Conn.Query(ctx, "SELECT id, source_node_id, target_node_id FROM edges WHERE source_node_id IN (SELECT id FROM nodes WHERE map_id = $1)", mapID)
 	defer edgeRows.Close()
 
 	var edges []map[string]interface{}
@@ -113,17 +109,12 @@ func HandleGetMap(w http.ResponseWriter, r *http.Request) {
 		var id, source, target string
 		edgeRows.Scan(&id, &source, &target)
 		edges = append(edges, map[string]interface{}{
-			"id": id,
-			"source": source,
-			"target": target,
+			"id": id, "source": source, "target": target,
 		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"nodes": nodes,
-		"edges": edges,
-	})
+	json.NewEncoder(w).Encode(map[string]interface{}{"nodes": nodes, "edges": edges})
 }
 
 func HandleListMaps(w http.ResponseWriter, r *http.Request) {
