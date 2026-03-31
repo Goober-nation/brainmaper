@@ -33,11 +33,13 @@ An interactive, AI-powered mind-mapping tool designed to help you brainstorm, st
 2. **Set up environment variables:**
 
    Copy the example environment file and add your Gemini API key.
+
    ``` cp .env.example .env ```
 
 3. **Start the containers:**
 
    Build and launch the application in detached mode.
+   
    ``` docker compose up --build ```
 
 4. **Open the app:**
