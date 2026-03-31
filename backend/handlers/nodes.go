@@ -56,21 +56,28 @@ func HandleUpdatePosition(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// HandleDeleteNode removes a node and its associated edges (cascading)
+// HandleDeleteNode removes a node and its associated edges
 func HandleDeleteNode(w http.ResponseWriter, r *http.Request) {
 	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 4 {
-		http.Error(w, "Invalid URL path", http.StatusBadRequest)
-		return
-	}
 	nodeID := pathParts[3]
 
 	_, err := database.Conn.Exec(context.Background(), "DELETE FROM nodes WHERE id = $1", nodeID)
 	if err != nil {
-		fmt.Printf("DATABASE ERROR (Delete Node): %v\n", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Error(w, "Failed to delete node", http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
+}
 
+// HandleDeleteEdge removes a connection between two nodes
+func HandleDeleteEdge(w http.ResponseWriter, r *http.Request) {
+	pathParts := strings.Split(r.URL.Path, "/")
+	edgeID := pathParts[3]
+
+	_, err := database.Conn.Exec(context.Background(), "DELETE FROM edges WHERE id = $1", edgeID)
+	if err != nil {
+		http.Error(w, "Failed to delete edge", http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }

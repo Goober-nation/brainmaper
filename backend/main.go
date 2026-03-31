@@ -59,6 +59,10 @@ func main() {
 			handlers.HandleCreateEdge(w, r)
 			return
 		}
+		if r.Method == "DELETE" && strings.HasPrefix(r.URL.Path, "/api/nodes/") {
+			handlers.HandleDeleteNode(w, r)
+			return
+		}
 		if r.Method == "DELETE" && strings.HasPrefix(r.URL.Path, "/api/edges/") {
 			handlers.HandleDeleteEdge(w, r)
 			return
