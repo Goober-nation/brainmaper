@@ -43,7 +43,7 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 
 	modelName := os.Getenv("GEMINI_MODEL")
 	if modelName == "" {
-		modelName = "gemini-3.1-flash-lite" // Fallback safety
+		modelName = "gemini-3.1-flash-lite-preview" // Fallback safety
 	}
 
 	maxDepth := 3 // Default fallback
