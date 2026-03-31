@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
+	// "strings"
 
 	"brainmap-backend/database"
 
@@ -36,24 +36,4 @@ func HandleCreateEdge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-}
-
-func HandleDeleteEdge(w http.ResponseWriter, r *http.Request) {
-	// Extract the Edge ID from /api/edges/{id}
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 4 {
-		http.Error(w, "Invalid URL path", http.StatusBadRequest)
-		return
-	}
-	edgeID := pathParts[3]
-
-	_, err := database.Conn.Exec(context.Background(), "DELETE FROM edges WHERE id = $1", edgeID)
-	
-	if err != nil {
-		fmt.Printf("DB ERROR (delete edge): %v\n", err)
-		http.Error(w, "Failed to delete edge", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
 }
