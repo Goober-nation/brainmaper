@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
+	// "os"
 	"strings"
 
 	"brainmap-backend/database"
@@ -52,9 +52,9 @@ func main() {
 			return
 		}
 		if r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/ask") {
-			handlers.HandleAsk(w, r)
-			return
-		}
+    		handlers.HandleAsk(w, r)
+    		return
+		}	
 		if r.Method == "POST" && r.URL.Path == "/api/edges" {
 			handlers.HandleCreateEdge(w, r)
 			return
@@ -63,18 +63,18 @@ func main() {
 			handlers.HandleDeleteEdge(w, r)
 			return
 		}
-		if r.Method == "GET" && r.URL.Path == "/api/debug/models" {
-			handlers.HandleListModels(w, r)
-			return
+		if r.Method == "GET" && r.URL.Path == "/api/maps" {
+    		handlers.HandleListMaps(w, r)
+    		return
 		}
 
 		http.NotFound(w, r)
 	}
 
-	// 2. Wrap the router in BOTH middlewares
+	// Wrap the router in BOTH middlewares
 	wrappedRouter := loggingMiddleware(corsMiddleware(router))
 
-	port := os.Getenv("APP_PORT")
-	fmt.Printf("Starting on port %s...\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, wrappedRouter))
+	// HARDCODE 8080 here instead of relying on an environment variable
+	fmt.Println("Starting on port 8080...")
+	log.Fatal(http.ListenAndServe(":8080", wrappedRouter))
 }
