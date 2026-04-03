@@ -67,6 +67,13 @@ func main() {
 			handlers.HandleDeleteEdge(w, r)
 			return
 		}
+		if r.Method == "DELETE" && strings.HasPrefix(r.URL.Path, "/api/maps/") {
+			pathParts := strings.Split(r.URL.Path, "/")
+			if len(pathParts) == 4 { 
+				handlers.HandleDeleteMap(w, r)
+				return
+			}
+		}
 		if r.Method == "GET" && r.URL.Path == "/api/maps" {
     		handlers.HandleListMaps(w, r)
     		return

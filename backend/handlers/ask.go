@@ -22,8 +22,8 @@ type AskRequest struct {
 	Question     string   `json:"question"`
 	PosX         float64  `json:"pos_x"`
 	PosY         float64  `json:"pos_y"`
-	IsUnplaced   bool     `json:"is_unplaced"`
-	MediaBase64  string   `json:"media_base64"`
+	MediaBase64  string   `json:"media_base64"` 
+	MediaName    string   `json:"media_name"`
 }
 
 func HandleAsk(w http.ResponseWriter, r *http.Request) {
@@ -164,15 +164,14 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 	
 	// Insert Node
 	_, err = tx.Exec(ctx,
-		"INSERT INTO nodes (id, map_id, type, query_text, response_text, pos_x, pos_y, is_unplaced) VALUES ($1, $2, 'q_and_a', $3, $4, $5, $6, $7)",
-		newNodeID, mapID, req.Question, aiAnswer, req.PosX, req.PosY, req.IsUnplaced)
+		"INSERT INTO nodes (id, map_id, type, query_text, response_text, pos_x, pos_y, image_data, media_name) VALUES ($1, $2, 'q_and_a', $3, $4, $5, $6, $7, $8)",
+		newNodeID, mapID, req.Question, aiAnswer, req.PosX, req.PosY, req.MediaBase64, req.MediaName)
 
-	// If it has a parent AND it's placed on the canvas, draw the Edge
-	if req.ParentNodeID != nil && !req.IsUnplaced {
+	if req.ParentNodeID != nil && *req.ParentNodeID != "" {
 		edgeID := uuid.New()
 		tx.Exec(ctx, "INSERT INTO edges (id, source_node_id, target_node_id) VALUES ($1, $2, $3)", edgeID, req.ParentNodeID, newNodeID)
 	}
-
+	
 	tx.Commit(ctx)
 
 	w.Header().Set("Content-Type", "application/json")

@@ -75,8 +75,8 @@ func HandleGetMap(w http.ResponseWriter, r *http.Request) {
 
 	ctx := context.Background()
 
-	// 1. Fetch Nodes (Now explicitly grabbing query_text, response_text, and image_data)
-	nodeRows, err := database.Conn.Query(ctx, "SELECT id, type, pos_x, pos_y, is_unplaced, COALESCE(query_text, ''), COALESCE(response_text, ''), COALESCE(image_data, '') FROM nodes WHERE map_id = $1", mapID)
+	// 1. Fetch Nodes (8 columns)
+	nodeRows, err := database.Conn.Query(ctx, "SELECT id, type, pos_x, pos_y, COALESCE(query_text, ''), COALESCE(response_text, ''), COALESCE(image_data, ''), COALESCE(media_name, '') FROM nodes WHERE map_id = $1", mapID)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -85,17 +85,19 @@ func HandleGetMap(w http.ResponseWriter, r *http.Request) {
 
 	var nodes []map[string]interface{}
 	for nodeRows.Next() {
-		var id, nType, qText, rText, imgData string
+		// Exactly 8 variables to match the 8 selected columns
+		var id, nType, qText, rText, imgData, mediaName string 
 		var posX, posY float64
-		var isUnplaced bool
-		nodeRows.Scan(&id, &nType, &posX, &posY, &isUnplaced, &qText, &rText, &imgData)
+		
+		nodeRows.Scan(&id, &nType, &posX, &posY, &qText, &rText, &imgData, &mediaName)
 
 		nodes = append(nodes, map[string]interface{}{
-			"id": id, "type": nType, "pos_x": posX, "pos_y": posY, "is_unplaced": isUnplaced,
+			"id": id, "type": nType, "pos_x": posX, "pos_y": posY,
 			"data": map[string]interface{}{
 				"question": qText,
 				"answer": rText,
 				"media_base64": imgData,
+				"media_name": mediaName,
 			},
 		})
 	}
@@ -139,4 +141,17 @@ func HandleListMaps(w http.ResponseWriter, r *http.Request) {
 func min(a, b int) int {
 	if a < b { return a }
 	return b
+}
+
+func HandleDeleteMap(w http.ResponseWriter, r *http.Request) {
+	pathParts := strings.Split(r.URL.Path, "/")
+	mapID := pathParts[3]
+
+	// ON DELETE CASCADE will automatically delete all nodes and edges inside this map!
+	_, err := database.Conn.Exec(context.Background(), "DELETE FROM brainmaps WHERE id = $1", mapID)
+	if err != nil {
+		http.Error(w, "Failed to delete map", 500)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
