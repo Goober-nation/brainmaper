@@ -5,34 +5,44 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
-	// 1. Notice the updated import path here!
-	"github.com/jackc/pgx/v5/pgxpool"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// 2. We change this from *pgx.Conn to *pgxpool.Pool
-var Conn *pgxpool.Pool
+var Client *mongo.Client
+var DB *mongo.Database
 
 func Connect() {
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
-	)
+	uri := fmt.Sprintf("mongodb://%s:%s@%s:%s",
+		os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"))
 
+	// CRITICAL FIX: Set a short 3-second timeout so the retry loop acts quickly
+	clientOptions := options.Client().ApplyURI(uri).SetServerSelectionTimeout(3 * time.Second)
+	var client *mongo.Client
 	var err error
-	// 3. We use pgxpool.New instead of pgx.Connect
-	Conn, err = pgxpool.New(context.Background(), dsn)
+
+	for i := 0; i < 15; i++ {
+		client, err = mongo.Connect(context.Background(), clientOptions)
+		if err == nil {
+			err = client.Ping(context.Background(), nil)
+			if err == nil {
+				break
+			} // Success
+		}
+		log.Printf("Waiting for MongoDB to initialize... (Attempt %d/15)\n", i+1)
+		time.Sleep(2 * time.Second)
+	}
+
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v\n", err)
+		log.Fatalf("MongoDB failed to start after retries: %v\n", err)
 	}
 
-	// Optional: Ping the database to ensure the pool is actually connected
-	if err := Conn.Ping(context.Background()); err != nil {
-		log.Fatalf("Database ping failed: %v\n", err)
-	}
-
-	fmt.Println("Successfully connected to PostgreSQL Connection Pool!")
+	// Restore normal timeout for general app queries
+	clientOptions.SetServerSelectionTimeout(30 * time.Second)
+	Client, _ = mongo.Connect(context.Background(), clientOptions)
+	DB = Client.Database(os.Getenv("DB_NAME"))
+	fmt.Println("Successfully connected to MongoDB!")
 }

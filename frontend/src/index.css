@@ -1,0 +1,34 @@
+:root {
+  /* Brighter Oceanic Theme */
+  --bg-dark: #0f172a;         /* Lighter slate background */
+  --node-bg: #1e293b;         /* Brighter panel background */
+  --accent-blue: #0ea5e9;     /* Vivid oceanic blue accent */
+  --accent-light: #38bdf8;    /* Bright highlight */
+  --text-main: #f8fafc;       /* Crisp white for text */
+  --text-muted: #94a3b8;      /* Soft grey-blue */
+  --border-color: #334155;    /* Distinct but light borders */
+  --danger: #ef4444;
+  --success: #10b981;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* React Flow Overrides */
+.react-flow__background {
+  background-color: var(--bg-dark);
+}
+.react-flow__controls-button {
+  background-color: var(--node-bg) !important;
+  fill: var(--text-main) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+.react-flow__controls-button:hover {
+  background-color: var(--border-color) !important;
+}

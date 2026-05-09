@@ -2,15 +2,18 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
-	"brainmap-backend/database"
+	"brainmap-backend/models"
+	"brainmap-backend/storage"
 
 	"github.com/google/generative-ai-go/genai"
 	"github.com/google/uuid"
@@ -18,22 +21,16 @@ import (
 )
 
 type AskRequest struct {
-	ParentNodeID *string  `json:"parent_node_id"`
-	Question     string   `json:"question"`
-	PosX         float64  `json:"pos_x"`
-	PosY         float64  `json:"pos_y"`
-	MediaBase64  string   `json:"media_base64"` 
-	MediaName    string   `json:"media_name"`
+	ParentNodeID *string `json:"parent_node_id"`
+	Question     string  `json:"question"`
+	PosX         float64 `json:"pos_x"`
+	PosY         float64 `json:"pos_y"`
+	MediaBase64  string  `json:"media_base64"`
+	MediaName    string  `json:"media_name"`
 }
 
 func HandleAsk(w http.ResponseWriter, r *http.Request) {
-	// Extract Map ID from /api/maps/{map_id}/ask
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 4 {
-		http.Error(w, "Invalid URL", http.StatusBadRequest)
-		return
-	}
-	mapID := pathParts[3]
+	mapID := strings.Split(r.URL.Path, "/")[3]
 
 	var req AskRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -42,72 +39,59 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := context.Background()
-
 	modelName := os.Getenv("GEMINI_MODEL")
 	if modelName == "" {
-		modelName = "gemini-3.1-flash-lite-preview" // Fallback safety
+		modelName = "gemini-3.1-flash-lite-preview"
 	}
 
-	maxDepth := 3 // Default fallback
+	maxDepth := 7
 	if depthStr := os.Getenv("CONTEXT_DEPTH"); depthStr != "" {
 		if d, err := strconv.Atoi(depthStr); err == nil && d > 0 {
 			maxDepth = d
 		}
 	}
 
-	// --- 1. Fetch the Map's core context ---
-	var mapTitle, mapMaterial string
-	database.Conn.QueryRow(ctx, "SELECT title, core_material FROM brainmaps WHERE id = $1", mapID).Scan(&mapTitle, &mapMaterial)
+	bMap, _ := storage.GetMap(mapID)
+	fullPrompt := fmt.Sprintf("You are an AI assistant helping a user brainstorm via a mind-map. The current map subject is: '%s'. Context: %s\n\n", bMap.Title, bMap.CoreMaterial)
 
-	fullPrompt := fmt.Sprintf("You are an AI assistant helping a user brainstorm via a mind-map. The current map subject is: '%s'. Context: %s\n\n", mapTitle, mapMaterial)
-
-	// --- 2. Recursive Context Aggregation ---
 	if req.ParentNodeID != nil && *req.ParentNodeID != "" {
-		// Postgres Recursive CTE to walk UP the tree
-		query := `
-		WITH RECURSIVE ancestor_path AS (
-			-- Base case: the immediate parent node
-			SELECT n.id, n.query_text, n.response_text, e.source_node_id as next_parent, 1 as depth
-			FROM nodes n
-			LEFT JOIN edges e ON n.id = e.target_node_id
-			WHERE n.id = $1
+		parentMap := make(map[string]string)
+		for _, e := range bMap.Edges {
+			parentMap[e.TargetNodeID] = e.SourceNodeID
+		}
 
-			UNION ALL
+		curr := *req.ParentNodeID
+		ancestorIDs := []string{curr}
+		for i := 0; i < maxDepth; i++ {
+			if p, ok := parentMap[curr]; ok {
+				ancestorIDs = append([]string{p}, ancestorIDs...)
+				curr = p
+			} else {
+				break
+			}
+		}
 
-			-- Recursive step: get the parent's parent
-			SELECT n.id, n.query_text, n.response_text, e.source_node_id, ap.depth + 1
-			FROM nodes n
-			JOIN ancestor_path ap ON n.id = ap.next_parent
-			LEFT JOIN edges e ON n.id = e.target_node_id
-			WHERE ap.depth < $2
-		)
-		SELECT COALESCE(query_text, ''), response_text FROM ancestor_path ORDER BY depth DESC;
-		`
-		
-		rows, err := database.Conn.Query(ctx, query, *req.ParentNodeID, maxDepth)
-		if err == nil {
-			defer rows.Close()
-			contextChain := ""
-			
-			// Because of ORDER BY depth DESC, this builds the string from oldest thought -> newest thought
-			for rows.Next() {
-				var q, a string
-				if err := rows.Scan(&q, &a); err == nil {
-					contextChain += fmt.Sprintf("User asked: '%s'\nYou answered: '%s'\n\n", q, a)
+		nodeLookup := make(map[string]models.Node)
+		for _, n := range bMap.Nodes {
+			nodeLookup[n.ID] = n
+		}
+
+		contextChain := ""
+		for _, id := range ancestorIDs {
+			if n, exists := nodeLookup[id]; exists {
+				if n.QueryText != "" {
+					contextChain += fmt.Sprintf("User asked: '%s'\n", n.QueryText)
 				}
+				contextChain += fmt.Sprintf("You answered: '%s'\n\n", n.ResponseText)
 			}
-			
-			if contextChain != "" {
-				fullPrompt += "Conversation History leading up to this point:\n" + contextChain
-			}
-		} else {
-			fmt.Printf("Error fetching context tree: %v\n", err)
+		}
+		if contextChain != "" {
+			fullPrompt += "Conversation History leading up to this point:\n" + contextChain
 		}
 	}
 
-	fullPrompt += fmt.Sprintf("New User Question: %s\nKeep your answer concise and informative.", req.Question)
+	fullPrompt += fmt.Sprintf("New User Question: %s\nKeep your answer concise and informative. Use markdown for code.", req.Question)
 
-	// --- 3. Ask Gemini ---
 	client, err := genai.NewClient(ctx, option.WithAPIKey(os.Getenv("GEMINI_API_KEY")))
 	if err != nil {
 		http.Error(w, "AI Client Error", 500)
@@ -116,33 +100,38 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 	defer client.Close()
 
 	model := client.GenerativeModel(modelName)
-
-	// Create a slice of "Parts" (Multimodal payload)
 	parts := []genai.Part{genai.Text(fullPrompt)}
 
-	// Dynamically handle Images OR PDFs
+	// Task 5: Save physical file to disk instead of injecting giant string into JSON
+	mediaURL := ""
 	if req.MediaBase64 != "" {
 		b64Parts := strings.SplitN(req.MediaBase64, ",", 2)
 		if len(b64Parts) == 2 {
-			mimePart := b64Parts[0] // e.g., "data:application/pdf;base64"
-			
-			// Determine the exact MIME type
-			mimeType := "image/jpeg" // default
-			if strings.Contains(mimePart, "image/png") { mimeType = "image/png" }
-			if strings.Contains(mimePart, "image/webp") { mimeType = "image/webp" }
-			if strings.Contains(mimePart, "application/pdf") { mimeType = "application/pdf" }
+			mimePart := b64Parts[0]
+			mimeType := "image/jpeg"
+			if strings.Contains(mimePart, "image/png") {
+				mimeType = "image/png"
+			}
+			if strings.Contains(mimePart, "image/webp") {
+				mimeType = "image/webp"
+			}
+			if strings.Contains(mimePart, "application/pdf") {
+				mimeType = "application/pdf"
+			}
 
 			fileData, _ := base64.StdEncoding.DecodeString(b64Parts[1])
-			
-			// genai.Blob allows us to pass raw files dynamically
-			parts = append(parts, genai.Blob{
-				MIMEType: mimeType,
-				Data:     fileData,
-			})
+			parts = append(parts, genai.Blob{MIMEType: mimeType, Data: fileData})
+
+			cleanName := strings.ReplaceAll(req.MediaName, " ", "_")
+			fileName := fmt.Sprintf("%d_%s", time.Now().Unix(), cleanName)
+			filePath := filepath.Join(storage.BaseDir, mapID, fileName)
+
+			os.WriteFile(filePath, fileData, 0644)
+			// Pass a localized URL that the frontend can load as a normal image src
+			mediaURL = fmt.Sprintf("http://localhost:8080/api/media/admin/%s/%s", mapID, fileName)
 		}
 	}
 
-	// Pass the multi-part slice to Gemini
 	resp, err := model.GenerateContent(ctx, parts...)
 	if err != nil || len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
 		http.Error(w, "AI Generation Failed", 500)
@@ -156,24 +145,30 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 3. Database Transaction
-	tx, _ := database.Conn.Begin(ctx)
-	defer tx.Rollback(ctx)
-
-	newNodeID := uuid.New()
-	
-	// Insert Node
-	_, err = tx.Exec(ctx,
-		"INSERT INTO nodes (id, map_id, type, query_text, response_text, pos_x, pos_y, image_data, media_name) VALUES ($1, $2, 'q_and_a', $3, $4, $5, $6, $7, $8)",
-		newNodeID, mapID, req.Question, aiAnswer, req.PosX, req.PosY, req.MediaBase64, req.MediaName)
-
-	if req.ParentNodeID != nil && *req.ParentNodeID != "" {
-		edgeID := uuid.New()
-		tx.Exec(ctx, "INSERT INTO edges (id, source_node_id, target_node_id) VALUES ($1, $2, $3)", edgeID, req.ParentNodeID, newNodeID)
+	newNode := models.Node{
+		ID:           uuid.New().String(),
+		Type:         "q_and_a",
+		QueryText:    req.Question,
+		ResponseText: aiAnswer,
+		PosX:         req.PosX, PosY: req.PosY,
+		Width: 350, Height: "auto",
+		ImageData: mediaURL, // Saved to map.json as a URL now
+		MediaName: req.MediaName,
+		CreatedAt: time.Now(),
 	}
-	
-	tx.Commit(ctx)
+
+	bMap.Nodes = append(bMap.Nodes, newNode)
+	if req.ParentNodeID != nil && *req.ParentNodeID != "" {
+		edge := models.Edge{
+			ID:           uuid.New().String(),
+			SourceNodeID: *req.ParentNodeID,
+			TargetNodeID: newNode.ID,
+		}
+		bMap.Edges = append(bMap.Edges, edge)
+	}
+
+	storage.SaveMap(bMap)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"id": newNodeID})
+	json.NewEncoder(w).Encode(map[string]interface{}{"id": newNode.ID})
 }

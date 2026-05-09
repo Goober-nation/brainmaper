@@ -1,83 +1,74 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
-	"brainmap-backend/database"
+	"brainmap-backend/models"
+	"brainmap-backend/storage"
 
 	"github.com/google/uuid"
 )
 
-// PosRequest handles the X and Y coordinates from React Flow
-type PosRequest struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
+type NodeStateRequest struct {
+	X           float64     `json:"x"`
+	Y           float64     `json:"y"`
+	Width       float64     `json:"width"`
+	Height      interface{} `json:"height"`
+	IsCollapsed bool        `json:"is_collapsed"`
 }
 
-// HandleUpdatePosition saves the visual location of a node so it persists on refresh
-func HandleUpdatePosition(w http.ResponseWriter, r *http.Request) {
-	// URL expected: /api/nodes/{id}/position
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 4 {
-		http.Error(w, "Invalid URL path", http.StatusBadRequest)
-		return
+func HandleUpdateNodeState(w http.ResponseWriter, r *http.Request) {
+	mapID := strings.Split(r.URL.Path, "/")[3]
+	nodeID := strings.Split(r.URL.Path, "/")[5]
+
+	var req NodeStateRequest
+	json.NewDecoder(r.Body).Decode(&req)
+
+	bMap, err := storage.GetMap(mapID)
+	if err == nil {
+		for i, n := range bMap.Nodes {
+			if n.ID == nodeID {
+				bMap.Nodes[i].PosX = req.X
+				bMap.Nodes[i].PosY = req.Y
+				bMap.Nodes[i].Width = req.Width
+				bMap.Nodes[i].Height = req.Height
+				bMap.Nodes[i].IsCollapsed = req.IsCollapsed
+				break
+			}
+		}
+		storage.SaveMap(bMap)
 	}
-	nodeIDStr := pathParts[3]
-
-	// Verify it's a valid UUID before hitting the DB
-	_, err := uuid.Parse(nodeIDStr)
-	if err != nil {
-		http.Error(w, "Invalid Node UUID", http.StatusBadRequest)
-		return
-	}
-
-	var req PosRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-		return
-	}
-
-	// Update the database
-	_, err = database.Conn.Exec(context.Background(),
-		"UPDATE nodes SET pos_x = $1, pos_y = $2 WHERE id = $3",
-		req.X, req.Y, nodeIDStr)
-
-	if err != nil {
-		fmt.Printf("DATABASE ERROR (Update Position): %v\n", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	// Success logging is handled by our main.go middleware
 	w.WriteHeader(http.StatusOK)
 }
 
-// HandleDeleteNode removes a node and its associated edges
 func HandleDeleteNode(w http.ResponseWriter, r *http.Request) {
-	pathParts := strings.Split(r.URL.Path, "/")
-	nodeID := pathParts[3]
+	mapID := strings.Split(r.URL.Path, "/")[3]
+	nodeID := strings.Split(r.URL.Path, "/")[5]
 
-	_, err := database.Conn.Exec(context.Background(), "DELETE FROM nodes WHERE id = $1", nodeID)
-	if err != nil {
-		http.Error(w, "Failed to delete node", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-}
+	bMap, err := storage.GetMap(mapID)
+	if err == nil {
+		// Filter nodes
+		var newNodes []models.Node
+		for _, n := range bMap.Nodes {
+			if n.ID != nodeID {
+				newNodes = append(newNodes, n)
+			}
+		}
+		bMap.Nodes = newNodes
 
-// HandleDeleteEdge removes a connection between two nodes
-func HandleDeleteEdge(w http.ResponseWriter, r *http.Request) {
-	pathParts := strings.Split(r.URL.Path, "/")
-	edgeID := pathParts[3]
+		// Filter edges
+		var newEdges []models.Edge
+		for _, e := range bMap.Edges {
+			if e.SourceNodeID != nodeID && e.TargetNodeID != nodeID {
+				newEdges = append(newEdges, e)
+			}
+		}
+		bMap.Edges = newEdges
 
-	_, err := database.Conn.Exec(context.Background(), "DELETE FROM edges WHERE id = $1", edgeID)
-	if err != nil {
-		http.Error(w, "Failed to delete edge", http.StatusInternalServerError)
-		return
+		storage.SaveMap(bMap)
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -88,22 +79,24 @@ type JoinerRequest struct {
 }
 
 func HandleCreateJoiner(w http.ResponseWriter, r *http.Request) {
-	pathParts := strings.Split(r.URL.Path, "/")
-	mapID := pathParts[3] // /api/maps/{map_id}/joiner
-
+	mapID := strings.Split(r.URL.Path, "/")[3]
 	var req JoinerRequest
 	json.NewDecoder(r.Body).Decode(&req)
 
-	newNodeID := uuid.New()
-	_, err := database.Conn.Exec(context.Background(),
-		"INSERT INTO nodes (id, map_id, type, pos_x, pos_y) VALUES ($1, $2, 'joiner', $3, $4)",
-		newNodeID, mapID, req.PosX, req.PosY)
+	newNode := models.Node{
+		ID:   uuid.New().String(),
+		Type: "joiner",
+		PosX: req.PosX, PosY: req.PosY,
+		Width: 24, Height: 24,
+		CreatedAt: time.Now(),
+	}
 
-	if err != nil {
-		http.Error(w, "Failed to create joiner", 500)
-		return
+	bMap, err := storage.GetMap(mapID)
+	if err == nil {
+		bMap.Nodes = append(bMap.Nodes, newNode)
+		storage.SaveMap(bMap)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"id": newNodeID})
+	json.NewEncoder(w).Encode(map[string]interface{}{"id": newNode.ID})
 }

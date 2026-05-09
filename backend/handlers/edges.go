@@ -1,39 +1,54 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	// "strings"
+	"strings"
 
-	"brainmap-backend/database"
+	"brainmap-backend/models"
+	"brainmap-backend/storage"
 
 	"github.com/google/uuid"
 )
 
 type CreateEdgeRequest struct {
-	SourceNodeID uuid.UUID `json:"source_node_id"`
-	TargetNodeID uuid.UUID `json:"target_node_id"`
+	SourceNodeID string `json:"source_node_id"`
+	TargetNodeID string `json:"target_node_id"`
+	MapID        string `json:"map_id"`
 }
 
 func HandleCreateEdge(w http.ResponseWriter, r *http.Request) {
 	var req CreateEdgeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
+	json.NewDecoder(r.Body).Decode(&req)
+
+	edge := models.Edge{
+		ID:           uuid.New().String(),
+		SourceNodeID: req.SourceNodeID,
+		TargetNodeID: req.TargetNodeID,
 	}
 
-	edgeID := uuid.New()
-	_, err := database.Conn.Exec(context.Background(),
-		"INSERT INTO edges (id, source_node_id, target_node_id) VALUES ($1, $2, $3)",
-		edgeID, req.SourceNodeID, req.TargetNodeID)
-
-	if err != nil {
-		fmt.Printf("DB ERROR (create edge): %v\n", err)
-		http.Error(w, "Failed to create edge", http.StatusInternalServerError)
-		return
+	bMap, err := storage.GetMap(req.MapID)
+	if err == nil {
+		bMap.Edges = append(bMap.Edges, edge)
+		storage.SaveMap(bMap)
 	}
-
 	w.WriteHeader(http.StatusCreated)
+}
+
+func HandleDeleteEdge(w http.ResponseWriter, r *http.Request) {
+	mapID := strings.Split(r.URL.Path, "/")[3]
+	edgeID := strings.Split(r.URL.Path, "/")[5]
+
+	bMap, err := storage.GetMap(mapID)
+	if err == nil {
+		var newEdges []models.Edge
+		for _, e := range bMap.Edges {
+			if e.ID != edgeID {
+				newEdges = append(newEdges, e)
+			}
+		}
+		bMap.Edges = newEdges
+		storage.SaveMap(bMap)
+	}
+	w.WriteHeader(http.StatusOK)
 }

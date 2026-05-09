@@ -1,0 +1,100 @@
+{
+  "id": "002f3535-a39e-40b2-87f0-d9c12f1cff14",
+  "user_id": "admin",
+  "title": "six-seventh",
+  "core_material": "",
+  "nodes": [
+    {
+      "id": "05c012e4-ef12-4aad-99ae-2f4efa5103a6",
+      "type": "core",
+      "query_text": "",
+      "response_text": "Core Material: six-seventh",
+      "pos_x": 250,
+      "pos_y": 250,
+      "width": 300,
+      "height": "auto",
+      "is_collapsed": false,
+      "media_base64": "",
+      "media_name": "",
+      "created_at": "2026-05-09T14:50:48.083416803Z"
+    },
+    {
+      "id": "de0058b6-fbc4-48a6-a360-4ded11fa6ac6",
+      "type": "q_and_a",
+      "query_text": "what is this",
+      "response_text": "This is a representation of the fraction **six-sevenths**.\n\nIn mathematical notation:\n\n```text\n6/7\n```\n\n*   **Decimal approximation:** ~0.857\n*   **Percentage:** ~85.7%",
+      "pos_x": 343.5174505858788,
+      "pos_y": 447.16059837427474,
+      "width": 350,
+      "height": "auto",
+      "is_collapsed": false,
+      "media_base64": "http://localhost:8080/api/media/admin/002f3535-a39e-40b2-87f0-d9c12f1cff14/1778338322_def.png",
+      "media_name": "def.png",
+      "created_at": "2026-05-09T14:52:14.55598149Z"
+    },
+    {
+      "id": "fbec0306-e914-4ab9-bcb6-bc4427f300be",
+      "type": "q_and_a",
+      "query_text": "explain the ax+b=y formula",
+      "response_text": "In the context of a linear relationship (often mapped as $f(x) = ax + b$):\n\n*   **$x$**: The **input** or independent variable.\n*   **$y$**: The **output** or dependent variable.\n*   **$a$**: The **slope** (rate of change). It determines how steeply the line rises or falls.\n*   **$b$**: The **y-intercept**. It is the value of $y$ when $x=0$ (where the line crosses the vertical axis).\n\n### Example\nIf you represent this as a function in code:\n\n```python\ndef linear_function(x, a, b):\n    return a * x + b\n\n# If a=2 and b=3, for x=5:\n# y = 2 * 5 + 3 = 13\n```\n\nIn your **\"six-seventh\"** mind-map, you might view $6/7$ as a specific instance of this formula where $a = 6/7$, $x$ is your input, and $b = 0$.",
+      "pos_x": 676.6069205241398,
+      "pos_y": 290.4126125209754,
+      "width": 589,
+      "height": 594,
+      "is_collapsed": false,
+      "media_base64": "",
+      "media_name": "",
+      "created_at": "2026-05-09T14:53:12.64804376Z"
+    },
+    {
+      "id": "16b0738b-494e-4d6a-be55-7977629e78fb",
+      "type": "q_and_a",
+      "query_text": "write bubblesort",
+      "response_text": "To visualize **Bubble Sort** within your \"six-seventh\" (algorithmic efficiency/sorting) mind map, here is the concise logic and implementation:\n\n### Core Concept: \"The Bubble\"\nRepeatedly step through the list, compare adjacent elements, and swap them if they are in the wrong order. The largest elements \"bubble\" to the top (end) of the list with each pass.\n\n### Implementation (Python)\n```python\ndef bubble_sort(arr):\n    n = len(arr)\n    for i in range(n):\n        for j in range(0, n - i - 1):\n            if arr[j] \u003e arr[j + 1]:\n                # Swap elements\n                arr[j], arr[j + 1] = arr[j + 1], arr[j]\n    return arr\n```\n\n### Map Nodes for Efficiency:\n*   **Time Complexity:** $O(n^2)$ (Average/Worst).\n*   **Space Complexity:** $O(1)$ (In-place).\n*   **Stability:** Stable (maintains relative order of equal elements).\n*   **Best Case:** $O(n)$ if the array is already sorted (with a \"swapped\" flag optimization).",
+      "pos_x": -328.2223656828269,
+      "pos_y": 873.3354110843285,
+      "width": 740,
+      "height": 723,
+      "is_collapsed": false,
+      "media_base64": "",
+      "media_name": "",
+      "created_at": "2026-05-09T14:54:03.854406632Z"
+    },
+    {
+      "id": "00576038-b2bd-4a37-a602-307a2927b250",
+      "type": "q_and_a",
+      "query_text": "rewrite that code in java",
+      "response_text": "To integrate this into your \"six-seventh\" mind map, here is the **Bubble Sort** implementation in Java:\n\n### Implementation (Java)\n\n```java\npublic class BubbleSort {\n    public static void bubbleSort(int[] arr) {\n        int n = arr.length;\n        for (int i = 0; i \u003c n - 1; i++) {\n            for (int j = 0; j \u003c n - i - 1; j++) {\n                if (arr[j] \u003e arr[j + 1]) {\n                    // Swap elements\n                    int temp = arr[j];\n                    arr[j] = arr[j + 1];\n                    arr[j + 1] = temp;\n                }\n            }\n        }\n    }\n}\n```\n\n### Key Technical Nodes for the Map:\n*   **Language Paradigm:** Statically typed, object-oriented.\n*   **Memory Management:** Heap-allocated arrays; the swap requires an explicit `temp` variable as Java does not support tuple unpacking like Python.\n*   **Efficiency:** Maintains $O(n^2)$ time complexity and $O(1)$ auxiliary space.",
+      "pos_x": -214.55551026034846,
+      "pos_y": 1680.6678141648085,
+      "width": 460,
+      "height": 743,
+      "is_collapsed": false,
+      "media_base64": "",
+      "media_name": "",
+      "created_at": "2026-05-09T14:55:15.159353554Z"
+    },
+    {
+      "id": "c0a4dd43-0193-4b51-8521-3f5cad197e78",
+      "type": "q_and_a",
+      "query_text": "import React, { useCallback, useMemo } from 'react';\nimport ReactFlow, {\n  applyNodeChanges,\n  applyEdgeChanges,\n  addEdge,\n  Background,\n  Controls\n} from 'reactflow';\nimport 'reactflow/dist/style.css'; // \u003c-- CRITICAL: This unfreezes the canvas\n\nimport QandANode from '../QandANode';\nimport JoinerNode from '../JoinerNode';\n\nexport default function MiddlePanel({\n  nodes, setNodes,\n  edges, setEdges,\n  setSelectedNode,\n  setRfInstance,\n  lastActivePos\n}) {\n\n  // 1. Register your custom node designs\n  const nodeTypes = useMemo(() =\u003e ({\n    q_and_a: QandANode,\n    core: QandANode,\n    joiner: JoinerNode\n  }), []);\n\n  // 2. Map Movement Handlers (Allows dragging nodes)\n  const onNodesChange = useCallback(\n    (changes) =\u003e setNodes((nds) =\u003e applyNodeChanges(changes, nds)),\n    [setNodes]\n  );\n\n  const onEdgesChange = useCallback(\n    (changes) =\u003e setEdges((eds) =\u003e applyEdgeChanges(changes, eds)),\n    [setEdges]\n  );\n\n  // 3. Optional: Allow users to draw lines between nodes\n  const onConnect = useCallback(\n    (params) =\u003e setEdges((eds) =\u003e addEdge(params, eds)),\n    [setEdges]\n  );\n\n  // 4. Save the new position to the database when the user lets go of the mouse\n  const onNodeDragStop = (_, node) =\u003e {\n    if (node.data \u0026\u0026 node.data.onUpdateState) {\n      // The updateNodeState function in App.jsx will automatically read the new X/Y\n      node.data.onUpdateState(node.id, {}); \n    }\n  };\n\n  // 5. Track which node is selected for the Right Panel chat\n  const onNodeClick = (_, node) =\u003e {\n    setSelectedNode(node);\n    if (lastActivePos) {\n      lastActivePos.current = { \n        x: node.position.x, \n        y: node.position.y, \n        height: node.style?.height || 200 \n      };\n    }\n  };\n\n  const onPaneClick = () =\u003e {\n    setSelectedNode(null);\n  };\n\n  return (\n    \u003cdiv style={{ flexGrow: 1, height: '100%', position: 'relative' }}\u003e\n      \u003cReactFlow\n        nodes={nodes}\n        edges={edges}\n        nodeTypes={nodeTypes}\n        onNodesChange={onNodesChange}\n        onEdgesChange={onEdgesChange}\n        onNodeDragStop={onNodeDragStop}\n        onConnect={onConnect}\n        onNodeClick={onNodeClick}\n        onPaneClick={onPaneClick}\n        onInit={setRfInstance}\n        fitView\n      \u003e\n        \u003cBackground color=\"var(--border-color)\" gap={16} size={1} /\u003e\n        \u003cControls /\u003e\n      \u003c/ReactFlow\u003e\n    \u003c/div\u003e\n  );\n}\n\nexplain",
+      "response_text": "This `MiddlePanel` component acts as the **visual canvas** for your mind-map using [React Flow](https://reactflow.dev/). It manages the interactive state of nodes and edges within your application.\n\n### Key Responsibilities:\n\n1.  **Registry (`nodeTypes`):** Maps your custom component logic (`QandANode`, `JoinerNode`) to specific data types so the graph knows how to render them.\n2.  **Interaction Handlers:**\n    *   `onNodesChange` / `onEdgesChange`: Enables standard drag-and-drop and connection behavior.\n    *   `onConnect`: Allows users to link nodes manually.\n    *   `onPaneClick`: Deselects the current node when clicking the background (useful for clearing the \"Right Panel\" chat).\n3.  **Persistence (`onNodeDragStop`):** Triggers `onUpdateState` whenever a node is moved. This ensures the node's new coordinates are saved to your database/state.\n4.  **Selection Context (`onNodeClick`):** Updates the parent state (`setSelectedNode`) so the application knows which node the user is currently editing or viewing in the Right Panel.\n\n### Implementation Highlights:\n*   **`useMemo` \u0026 `useCallback`**: Crucial for performance; prevents unnecessary re-renders of the canvas when parent states change.\n*   **`fitView`**: Automatically centers the graph on load.\n*   **`import 'reactflow/dist/style.css'`**: Required to load the CSS grid and handle component dimensions, which prevents the \"frozen canvas\" issue.\n\n**In the context of 'six-seventh':**\nThis component is the engine that drives your interface. It provides the **spatial layout** for your entities, ensuring that when you move a node (representing a \"seventh\" or sub-thought), the UI reflects that change persistently.",
+      "pos_x": 637.7741673158753,
+      "pos_y": 1445.7396100563499,
+      "width": 350,
+      "height": "auto",
+      "is_collapsed": false,
+      "media_base64": "",
+      "media_name": "",
+      "created_at": "2026-05-09T14:56:33.148859962Z"
+    }
+  ],
+  "edges": [
+    {
+      "id": "ba542a69-19a1-4472-bd5c-753dfc40d1fb",
+      "source_node_id": "16b0738b-494e-4d6a-be55-7977629e78fb",
+      "target_node_id": "00576038-b2bd-4a37-a602-307a2927b250"
+    }
+  ],
+  "created_at": "2026-05-09T14:50:48.083417063Z"
+}
