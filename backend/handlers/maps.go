@@ -29,7 +29,7 @@ func HandleCreateMap(w http.ResponseWriter, r *http.Request) {
 		ID:           coreNodeID,
 		Type:         "core",
 		ResponseText: "Core Material: " + req.Title,
-		PosX:         250, PosY: 250, Width: 300, Height: "auto",
+		PosX:         250, PosY: 250, Width: 300, Height: 0, IsAutoHeight: true,
 		CreatedAt: time.Now(),
 	}
 
