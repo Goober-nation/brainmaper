@@ -62,8 +62,8 @@ export default function RightPanel() {
   return (
     <div style={{ flexGrow: 1, height: '100%', position: 'relative' }}>
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={nodes || []}
+        edges={edges || []}
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
