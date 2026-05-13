@@ -2,9 +2,9 @@ import React, { useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { API_BASE } from '../../App';
+import { useMapStore, API_BASE } from '../../store/useMapStore';
 
-export default function MiddlePanel({ mapId, middleWidth, setMiddleWidth, isLeftOpen, selectedNode, setSelectedNode, nodes, setNodes, edges, setEdges, rfInstance, lastActivePos, loadMap }) {
+export default function MiddlePanel({ middleWidth, setMiddleWidth, isLeftOpen }) {
   const [question, setQuestion] = useState("");
   const [selectedMedia, setSelectedMedia] = useState(null); 
   const [selectedMediaName, setSelectedMediaName] = useState("");
@@ -12,6 +12,11 @@ export default function MiddlePanel({ mapId, middleWidth, setMiddleWidth, isLeft
   
   const inputRef = useRef(null);
   const chatScrollRef = useRef(null);
+
+  const { 
+    mapId, selectedNode, setSelectedNode, nodes, setNodes, edges, setEdges, 
+    rfInstance, loadMap 
+  } = useMapStore();
 
   const startResize = useCallback((e) => {
     e.preventDefault();
@@ -110,7 +115,6 @@ export default function MiddlePanel({ mapId, middleWidth, setMiddleWidth, isLeft
             await loadMap(mapId); 
             setSelectedNode({ id: newNode.id }); 
             setNodes(nds => nds.map(n => ({ ...n, selected: n.id === newNode.id })));
-            lastActivePos.current = { x: targetX, y: targetY, height: 'auto' };
         }
     } catch (err) { console.error(err); } 
     finally { setLoading(false); }

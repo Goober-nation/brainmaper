@@ -6,18 +6,19 @@ import ReactFlow, {
   Background,
   Controls
 } from 'reactflow';
-import 'reactflow/dist/style.css'; // <-- CRITICAL: This unfreezes the canvas
+import 'reactflow/dist/style.css';
 
 import QandANode from '../QandANode';
 import JoinerNode from '../JoinerNode';
+import { useMapStore } from '../../store/useMapStore';
 
-export default function MiddlePanel({
-  nodes, setNodes,
-  edges, setEdges,
-  setSelectedNode,
-  setRfInstance,
-  lastActivePos
-}) {
+export default function RightPanel() {
+  const { 
+    nodes, setNodes, 
+    edges, setEdges, 
+    setSelectedNode, 
+    setRfInstance 
+  } = useMapStore();
 
   // 1. Register your custom node designs
   const nodeTypes = useMemo(() => ({
@@ -45,22 +46,13 @@ export default function MiddlePanel({
 
   // 4. Save the new position to the database when the user lets go of the mouse
   const onNodeDragStop = (_, node) => {
-    if (node.data && node.data.onUpdateState) {
-      // The updateNodeState function in App.jsx will automatically read the new X/Y
-      node.data.onUpdateState(node.id, {}); 
-    }
+    // Use the store's action directly instead of a function passed in data
+    useMapStore.getState().updateNodeState(node.id, {}); 
   };
 
   // 5. Track which node is selected for the Right Panel chat
   const onNodeClick = (_, node) => {
     setSelectedNode(node);
-    if (lastActivePos) {
-      lastActivePos.current = { 
-        x: node.position.x, 
-        y: node.position.y, 
-        height: node.style?.height || 200 
-      };
-    }
   };
 
   const onPaneClick = () => {

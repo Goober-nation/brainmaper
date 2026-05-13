@@ -5,22 +5,21 @@ import '@reactflow/node-resizer/dist/style.css';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useMapStore } from '../store/useMapStore';
 
 export default function QandANode({ id, data, selected }) {
   const [isCollapsed, setIsCollapsed] = useState(data.is_collapsed || false);
+  const updateNodeState = useMapStore(state => state.updateNodeState);
 
   const toggleCollapse = () => {
     const newState = !isCollapsed;
     setIsCollapsed(newState);
-    if (data.onUpdateState) {
-      data.onUpdateState(id, { is_collapsed: newState });
-    }
+    updateNodeState(id, { is_collapsed: newState });
   };
 
   const copyToClipboard = (text) => navigator.clipboard.writeText(text);
   const isImage = data.media_base64 && data.media_base64.startsWith('data:image');
 
-  // When collapsed, we let the container naturally size to the content
   return (
     <div className={`custom-node ${selected ? 'selected' : ''}`} style={{ width: '100%', height: isCollapsed ? 'auto' : '100%' }}>
       <NodeResizer 
@@ -29,9 +28,7 @@ export default function QandANode({ id, data, selected }) {
         minWidth={250} 
         minHeight={100}
         onResizeEnd={(e, params) => {
-           if (data.onUpdateState) {
-             data.onUpdateState(id, { width: params.width, height: params.height, is_collapsed: isCollapsed });
-           }
+           updateNodeState(id, { width: params.width, height: params.height, is_collapsed: isCollapsed });
         }}
       />
       

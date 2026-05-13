@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { API_BASE } from '../../App';
+import { useMapStore, API_BASE } from '../../store/useMapStore';
 
-export default function LeftPanel({ isLeftOpen, setIsLeftOpen, mapList, mapId, switchMap, createNewMap, refreshMapList, setNodes, setEdges, setMapId }) {
+export default function LeftPanel({ isLeftOpen, setIsLeftOpen }) {
   const [menuOpen, setMenuOpen] = useState(null);
+  
+  const { 
+    mapList, mapId, switchMap, createNewMap, refreshMapList, setMapId, setNodes, setEdges 
+  } = useMapStore();
 
   const deleteMap = async (e, id) => {
     e.stopPropagation();
