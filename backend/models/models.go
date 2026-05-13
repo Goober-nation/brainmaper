@@ -21,7 +21,8 @@ type Node struct {
 	PosX         float64     `json:"pos_x" bson:"pos_x"`
 	PosY         float64     `json:"pos_y" bson:"pos_y"`
 	Width        float64     `json:"width" bson:"width"`
-	Height       interface{} `json:"height" bson:"height"` // Using interface{} to allow both float64 and "auto" string
+	Height       float64     `json:"height" bson:"height"`
+	IsAutoHeight bool        `json:"is_auto_height" bson:"is_auto_height"`
 	IsCollapsed  bool        `json:"is_collapsed" bson:"is_collapsed"`
 	ImageData    string      `json:"media_base64" bson:"image_data"`
 	MediaName    string      `json:"media_name" bson:"media_name"`

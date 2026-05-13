@@ -102,7 +102,6 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 	model := client.GenerativeModel(modelName)
 	parts := []genai.Part{genai.Text(fullPrompt)}
 
-	// Task 5: Save physical file to disk instead of injecting giant string into JSON
 	mediaURL := ""
 	if req.MediaBase64 != "" {
 		b64Parts := strings.SplitN(req.MediaBase64, ",", 2)
@@ -127,7 +126,6 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 			filePath := filepath.Join(storage.BaseDir, mapID, fileName)
 
 			os.WriteFile(filePath, fileData, 0644)
-			// Pass a localized URL that the frontend can load as a normal image src
 			mediaURL = fmt.Sprintf("http://localhost:8080/api/media/admin/%s/%s", mapID, fileName)
 		}
 	}
@@ -151,8 +149,8 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 		QueryText:    req.Question,
 		ResponseText: aiAnswer,
 		PosX:         req.PosX, PosY: req.PosY,
-		Width: 350, Height: "auto",
-		ImageData: mediaURL, // Saved to map.json as a URL now
+		Width: 350, Height: 0, IsAutoHeight: true,
+		ImageData: mediaURL,
 		MediaName: req.MediaName,
 		CreatedAt: time.Now(),
 	}

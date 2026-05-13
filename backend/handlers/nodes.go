@@ -25,7 +25,10 @@ func HandleUpdateNodeState(w http.ResponseWriter, r *http.Request) {
 	nodeID := strings.Split(r.URL.Path, "/")[5]
 
 	var req NodeStateRequest
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid body", http.StatusBadRequest)
+		return
+	}
 
 	bMap, err := storage.GetMap(mapID)
 	if err == nil {
@@ -34,7 +37,16 @@ func HandleUpdateNodeState(w http.ResponseWriter, r *http.Request) {
 				bMap.Nodes[i].PosX = req.X
 				bMap.Nodes[i].PosY = req.Y
 				bMap.Nodes[i].Width = req.Width
-				bMap.Nodes[i].Height = req.Height
+				
+				// Handle Height interface{} -> float64 + IsAutoHeight
+				if h, ok := req.Height.(float64); ok {
+					bMap.Nodes[i].Height = h
+					bMap.Nodes[i].IsAutoHeight = false
+				} else if h, ok := req.Height.(string); ok && h == "auto" {
+					bMap.Nodes[i].IsAutoHeight = true
+					bMap.Nodes[i].Height = 0
+				}
+				
 				bMap.Nodes[i].IsCollapsed = req.IsCollapsed
 				break
 			}
