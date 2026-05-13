@@ -95,8 +95,8 @@ export default function MiddlePanel({ middleWidth, setMiddleWidth, isLeftOpen })
       data: { question: cachedQuestion, media_base64: cachedMedia, media_name: cachedMediaName, is_loading: true }
     };
     
-    setNodes(nds => [...nds, tempNode]);
-    if (selectedNode) setEdges(eds => [...eds, { id: `e-${selectedNode.id}-${tempId}`, source: selectedNode.id, target: tempId }]);
+    setNodes(nds => [...(Array.isArray(nds) ? nds : []), tempNode]);
+    if (selectedNode) setEdges(eds => [...(Array.isArray(eds) ? eds : []), { id: `e-${selectedNode.id}-${tempId}`, source: selectedNode.id, target: tempId }]);
     
     setQuestion(""); clearMedia();
     if (inputRef.current) inputRef.current.style.height = 'auto';

@@ -29,12 +29,12 @@ export default function RightPanel() {
 
   // 2. Map Movement Handlers (Allows dragging nodes)
   const onNodesChange = useCallback(
-    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    (changes) => setNodes((nds) => applyNodeChanges(changes, Array.isArray(nds) ? nds : [])),
     [setNodes]
   );
 
   const onEdgesChange = useCallback(
-    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+    (changes) => setEdges((eds) => applyEdgeChanges(changes, Array.isArray(eds) ? eds : [])),
     [setEdges]
   );
 
@@ -62,8 +62,8 @@ export default function RightPanel() {
   return (
     <div style={{ flexGrow: 1, height: '100%', position: 'relative' }}>
       <ReactFlow
-        nodes={nodes || []}
-        edges={edges || []}
+        nodes={Array.isArray(nodes) ? nodes : []}
+        edges={Array.isArray(edges) ? edges : []}
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
