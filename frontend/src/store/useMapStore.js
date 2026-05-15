@@ -15,8 +15,12 @@ export const useMapStore = create((set, get) => ({
   // --- Basic Setters ---
   setMapId: (id) => set({ mapId: id }),
   setMapList: (list) => set({ mapList: list }),
-  setNodes: (nodes) => set({ nodes }),
-  setEdges: (edges) => set({ edges }),
+  setNodes: (nodes) => set((state) => ({ 
+    nodes: typeof nodes === 'function' ? nodes(state.nodes) : nodes 
+  })),
+  setEdges: (edges) => set((state) => ({ 
+    edges: typeof edges === 'function' ? edges(state.edges) : edges 
+  })),
   setSelectedNode: (node) => set({ selectedNode: node }),
   setPlacingMode: (mode) => set({ placingMode: mode }),
   setRfInstance: (instance) => set({ rfInstance: instance }),
@@ -55,14 +59,14 @@ export const useMapStore = create((set, get) => ({
       const res = await fetch(`${API_BASE}/maps/${id}`);
       const data = await res.json();
       
-      const canvasNodes = (data.nodes || []).map(n => ({
-          id: n.id, type: n.type, position: { x: n.pos_x, y: n.pos_y },
-          style: { width: n.width || 350, height: n.is_collapsed ? 'auto' : (n.height || 'auto') },
-          data: { 
-            question: n.data.question, answer: n.data.answer, media_base64: n.data.media_base64, 
-            media_name: n.data.media_name, is_collapsed: n.is_collapsed
-          }
-        }));
+       const canvasNodes = (data.nodes || []).map(n => ({
+           id: n.id, type: n.type, position: { x: n.pos_x, y: n.pos_y },
+           style: { width: n.width || 350, height: n.is_collapsed ? 'auto' : (n.height > 0 ? n.height : 200) },
+           data: { 
+             question: n.data.question, answer: n.data.answer, media_base64: n.data.media_base64, 
+             media_name: n.data.media_name, is_collapsed: n.is_collapsed
+           }
+         }));
         
       set({ nodes: canvasNodes, edges: data.edges || [] });
     } catch (e) { console.error("Failed to load map", e); }

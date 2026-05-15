@@ -7,21 +7,21 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useMapStore } from '../store/useMapStore';
 
-export default function QandANode({ id, data, selected }) {
+export default function QandANode({ id, data, selected, style }) {
   const [isCollapsed, setIsCollapsed] = useState(data.is_collapsed || false);
   const updateNodeState = useMapStore(state => state.updateNodeState);
-
+  
   const toggleCollapse = () => {
     const newState = !isCollapsed;
     setIsCollapsed(newState);
     updateNodeState(id, { is_collapsed: newState });
   };
-
+  
   const copyToClipboard = (text) => navigator.clipboard.writeText(text);
   const isImage = data.media_base64 && data.media_base64.startsWith('data:image');
-
+  
   return (
-    <div className={`custom-node ${selected ? 'selected' : ''}`} style={{ width: '100%', height: isCollapsed ? 'auto' : '100%' }}>
+    <div className={`custom-node ${selected ? 'selected' : ''}`} style={{ ...style, height: isCollapsed ? 'auto' : (style?.height || 'auto') }}>
       <NodeResizer 
         color="var(--accent-light)" 
         isVisible={selected && !isCollapsed} 
