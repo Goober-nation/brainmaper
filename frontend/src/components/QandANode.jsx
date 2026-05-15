@@ -21,7 +21,7 @@ export default function QandANode({ id, data, selected, style }) {
   const isImage = data.media_base64 && data.media_base64.startsWith('data:image');
   
   return (
-    <div className={`custom-node ${selected ? 'selected' : ''}`} style={{ ...style, height: isCollapsed ? 'auto' : (style?.height || 'auto') }}>
+    <div className={`custom-node ${selected ? 'selected' : ''}`} style={{ width: '100%', height: '100%' }}>
       <NodeResizer 
         color="var(--accent-light)" 
         isVisible={selected && !isCollapsed} 

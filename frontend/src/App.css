@@ -60,6 +60,7 @@
   overflow: hidden;
   transition: border-color 0.2s, box-shadow 0.2s;
   min-height: 50px;
+  box-sizing: border-box;
 }
 
 .custom-node.selected {
