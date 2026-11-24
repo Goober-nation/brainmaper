@@ -1,56 +1,35 @@
-# 🧠 Brainmap AI
+# Brainmap AI
 
-An interactive, AI-powered mind-mapping tool designed to help you brainstorm, study, and explore complex topics. Build free-form knowledge graphs where every node can branch out into contextual AI-generated answers.
+Веб-приложение для карт идей: вопросы и ответы располагаются в узлах, а связи позволяют продолжать исследование с учетом контекста ветки. Карты и их содержимое хранятся в MongoDB, вложения - в файловом каталоге backend.
 
-## 🚀 Features
+## Запуск
 
-* **Infinite Spatial Canvas:** Drag, drop, and connect nodes using React Flow.
-* **Context-Aware AI:** Ask questions based on previous nodes. The backend uses a recursive PostgreSQL query to traverse the graph and feed the AI your entire conversation history.
-* **Floating Thoughts:** Ask questions without a parent node and drop the AI's response exactly where your mouse clicks.
-* **Multiple Workspaces:** Create, switch between, and manage multiple independent brainmaps.
-* **Fully Containerized:** The entire stack (Database, Backend, Frontend) runs in Docker with a single command.
+Нужны Docker с Compose и ключ Gemini для генерации ответов.
 
-## 🛠 Tech Stack
+1. Скопируйте `.env.example` в `.env`. Укажите непустые `DB_USER`, `DB_PASSWORD`, `DB_NAME` и `GEMINI_API_KEY`.
+2. Запустите `docker compose up -d --build`.
+3. Откройте `http://localhost:5173` или порт из `FRONTEND_EXTERNAL_PORT`.
 
-* **Frontend:** React, React Flow, Vite, served via Nginx.
-* **Backend:** Go (Golang), `pgx` driver, Google GenAI SDK.
-* **Database:** PostgreSQL 17 (Relational mapping of nodes and edges).
-* **AI Model:** Gemini 3.1 Flash Lite (Configurable).
+MongoDB по умолчанию доступна на порту `27017` (`MONGO_EXTERNAL_PORT`), backend - на `8080` (`BACKEND_EXTERNAL_PORT`). Измените порты в `.env`, если они заняты. Для смены учетных данных существующей базы нужно отдельно обновить пользователя MongoDB: переменные инициализации действуют только при создании базы.
 
-## 🚦 Getting Started
+Создайте карту через `New Map`, выберите узел и задайте вопрос. Можно приложить PNG, JPEG, WebP или PDF. Ответ добавится в дочерний узел. Без выбранного узла создается отдельная ветка. Узлы можно перемещать, сворачивать и изменять их размер; связи можно рисовать между ними.
 
-### Prerequisites
+## Устройство
 
-* [Docker](https://docs.docker.com/get-docker/) and Docker Compose installed.
-* A free Gemini API key from [Google AI Studio](https://aistudio.google.com/).
+- `frontend/`: React, React Flow и Vite; production-сборку раздает Nginx и проксирует `/api/` к backend.
+- `backend/`: Go HTTP API, MongoDB и Gemini API. Контекст строится из цепочки родительских узлов; длина задается `CONTEXT_DEPTH`.
+- MongoDB хранит карты, узлы и связи в томе `mongo_data`. Файлы вложений хранятся в `backend/data/` и доступны через `/api/media/`.
 
-### Installation
+Дополнительные сведения: [архитектура и API](docs/architecture.md), [разработка интерфейса](frontend/README.md).
 
-1. **Clone the repository:**
+## Проверка и остановка
 
-   ``` git clone https://github.com/Goober-nation/brainmaper && cd brainmaper ```
+Backend: `cd backend && go test ./...`. Интерфейс: `cd frontend && npm ci && npm run build` и `npm run lint`.
 
-2. **Set up environment variables:**
+Остановить сервисы: `docker compose down`. Не используйте `down -v`, если нужно сохранить карты: эта команда удаляет том MongoDB. Копируйте отдельно и том MongoDB, и каталог `backend/data/`, иначе резервная копия будет неполной.
 
-   Copy the example environment file and add your Gemini API key.
+Если страница пустая, проверьте `docker compose ps` и `docker compose logs backend`. Если генерация не работает, проверьте ключ, модель и доступ контейнера к Gemini. Базовый интерфейс и сохраненные карты можно открыть без ключа, но новые ответы не сформируются.
 
-   ``` cp .env.example .env ```
+## Ограничения
 
-3. **Start the containers:**
-
-   Build and launch the application in detached mode.
-
-   ``` docker compose up --build ```
-
-4. **Open the app:**
-
-   Navigate to [http://localhost:5173](http://localhost:5173) in your web browser.
-
-## 🛑 Troubleshooting
-
-* **CORS Errors / Blank Screen:** Ensure the Go backend has successfully connected to the database. Check the logs using `docker compose logs backend`.
-* **Port Conflicts:** If ports `5433`, `8080`, or `5173` are in use on your host machine, change the `_EXTERNAL_PORT` variables in your `.env` file.
-* **Database Reset:** If you need to completely wipe your maps and start fresh, remove the Docker volume:
-
-  ``` docker compose down -v ```
-  ``` docker compose up -d ```
+Приложение не содержит полноценной авторизации и предназначено для доверенного окружения. Не публикуйте API или MongoDB в интернет без дополнительной защиты. Демонстрационные данные не являются результатом запросов к модели.

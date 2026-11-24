@@ -2,7 +2,6 @@ import React, { useCallback, useMemo } from 'react';
 import ReactFlow, {
   applyNodeChanges,
   applyEdgeChanges,
-  addEdge,
   Background,
   Controls
 } from 'reactflow';
@@ -39,10 +38,18 @@ export default function RightPanel() {
   );
 
   // 3. Optional: Allow users to draw lines between nodes
-  const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
-  );
+  const onConnect = useCallback(async (params) => {
+    const { mapId, loadMap } = useMapStore.getState();
+    if (!mapId) return;
+    try {
+      const res = await fetch('/api/edges', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ map_id: mapId, source_node_id: params.source, target_node_id: params.target })
+      });
+      if (!res.ok) throw new Error('Could not save connection');
+      await loadMap(mapId);
+    } catch (err) { console.error(err); }
+  }, []);
 
   // 4. Save the new position to the database when the user lets go of the mouse
   const onNodeDragStop = (_, node) => {

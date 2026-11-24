@@ -10,7 +10,7 @@ services:
     volumes:
       - mongo_data:/data/db
     ports:
-      - "${POSTGRES_EXTERNAL_PORT:-27017}:27017"
+      - "${MONGO_EXTERNAL_PORT:-27017}:27017"
 
   backend:
     build: ./backend

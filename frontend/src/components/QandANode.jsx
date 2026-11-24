@@ -18,7 +18,7 @@ export default function QandANode({ id, data, selected, style }) {
   };
   
   const copyToClipboard = (text) => navigator.clipboard.writeText(text);
-  const isImage = data.media_base64 && data.media_base64.startsWith('data:image');
+  const isImage = data.media_base64 && (data.media_base64.startsWith('data:image/') || /\.(png|jpe?g|webp)(?:[?#]|$)/i.test(data.media_name || data.media_base64));
   
   return (
     <div className={`custom-node ${selected ? 'selected' : ''}`} style={{ width: '100%', height: '100%' }}>
@@ -46,7 +46,7 @@ export default function QandANode({ id, data, selected, style }) {
       <div className="node-content">
         {isCollapsed ? (
             <div className="collapsed-text">
-                {data.answer.replace(/[#*`_>]/g, '') /* Strip basic markdown for preview */}
+                {(data.answer || '').replace(/[#*`_>]/g, '') /* Strip basic markdown for preview */}
             </div>
         ) : (
             <>
@@ -55,7 +55,7 @@ export default function QandANode({ id, data, selected, style }) {
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 'bold' }}>
                         {isImage ? '🖼️ ' : '📄 '} {data.media_name || 'Attached Document'}
                     </div>
-                    {isImage && <img src={data.media_base64} alt="attached" style={{ width: '100%', borderRadius: '4px' }} />}
+                    {isImage ? <img src={data.media_base64} alt={data.media_name || 'Attached image'} style={{ width: '100%', borderRadius: '4px' }} /> : <a href={data.media_base64} target="_blank" rel="noreferrer">Open attachment</a>}
                     </div>
                 )}
 

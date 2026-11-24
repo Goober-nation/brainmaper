@@ -1,11 +1,12 @@
 package handlers
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -33,12 +34,13 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 	mapID := strings.Split(r.URL.Path, "/")[3]
 
 	var req AskRequest
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<20)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
 	}
 
-	ctx := context.Background()
+	ctx := r.Context()
 	modelName := os.Getenv("GEMINI_MODEL")
 	if modelName == "" {
 		modelName = "gemini-3.1-flash-lite-preview"
@@ -51,7 +53,11 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	bMap, _ := storage.GetMap(mapID)
+	bMap, err := storage.GetMap(mapID)
+	if err != nil {
+		http.Error(w, "Map not found", http.StatusNotFound)
+		return
+	}
 	fullPrompt := fmt.Sprintf("You are an AI assistant helping a user brainstorm via a mind-map. The current map subject is: '%s'. Context: %s\n\n", bMap.Title, bMap.CoreMaterial)
 
 	if req.ParentNodeID != nil && *req.ParentNodeID != "" {
@@ -102,32 +108,14 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 	model := client.GenerativeModel(modelName)
 	parts := []genai.Part{genai.Text(fullPrompt)}
 
-	mediaURL := ""
+	var attachment *attachmentData
 	if req.MediaBase64 != "" {
-		b64Parts := strings.SplitN(req.MediaBase64, ",", 2)
-		if len(b64Parts) == 2 {
-			mimePart := b64Parts[0]
-			mimeType := "image/jpeg"
-			if strings.Contains(mimePart, "image/png") {
-				mimeType = "image/png"
-			}
-			if strings.Contains(mimePart, "image/webp") {
-				mimeType = "image/webp"
-			}
-			if strings.Contains(mimePart, "application/pdf") {
-				mimeType = "application/pdf"
-			}
-
-			fileData, _ := base64.StdEncoding.DecodeString(b64Parts[1])
-			parts = append(parts, genai.Blob{MIMEType: mimeType, Data: fileData})
-
-			cleanName := strings.ReplaceAll(req.MediaName, " ", "_")
-			fileName := fmt.Sprintf("%d_%s", time.Now().Unix(), cleanName)
-			filePath := filepath.Join(storage.BaseDir, mapID, fileName)
-
-			os.WriteFile(filePath, fileData, 0644)
-			mediaURL = fmt.Sprintf("http://localhost:8080/api/media/admin/%s/%s", mapID, fileName)
+		attachment, err = parseAttachment(req.MediaBase64, req.MediaName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
+		parts = append(parts, genai.Blob{MIMEType: attachment.mimeType, Data: attachment.data})
 	}
 
 	resp, err := model.GenerateContent(ctx, parts...)
@@ -140,6 +128,15 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 	for _, part := range resp.Candidates[0].Content.Parts {
 		if txt, ok := part.(genai.Text); ok {
 			aiAnswer += string(txt)
+		}
+	}
+
+	mediaURL := ""
+	if attachment != nil {
+		mediaURL, err = saveAttachment(mapID, attachment)
+		if err != nil {
+			http.Error(w, "Cannot save attachment", http.StatusInternalServerError)
+			return
 		}
 	}
 
@@ -165,8 +162,54 @@ func HandleAsk(w http.ResponseWriter, r *http.Request) {
 		bMap.Edges = append(bMap.Edges, edge)
 	}
 
-	storage.SaveMap(bMap)
+	if err := storage.SaveMap(bMap); err != nil {
+		http.Error(w, "Cannot save map", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"id": newNode.ID})
+}
+
+type attachmentData struct {
+	mimeType string
+	data     []byte
+	name     string
+}
+
+func parseAttachment(raw, name string) (*attachmentData, error) {
+	parts := strings.SplitN(raw, ",", 2)
+	if len(parts) != 2 || !strings.HasPrefix(parts[0], "data:") || !strings.HasSuffix(parts[0], ";base64") {
+		return nil, errors.New("Invalid attachment")
+	}
+	mime := strings.TrimSuffix(strings.TrimPrefix(parts[0], "data:"), ";base64")
+	switch mime {
+	case "image/jpeg", "image/png", "image/webp", "application/pdf":
+	default:
+		return nil, errors.New("Unsupported attachment type")
+	}
+	data, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil || len(data) == 0 {
+		return nil, errors.New("Invalid attachment data")
+	}
+	name = filepath.Base(strings.ReplaceAll(name, "\\", "/"))
+	if name == "." || name == "/" || name == "" {
+		name = "attachment"
+	}
+	return &attachmentData{mimeType: mime, data: data, name: name}, nil
+}
+
+func saveAttachment(mapID string, a *attachmentData) (string, error) {
+	if mapID == "" || filepath.Base(mapID) != mapID {
+		return "", errors.New("Invalid map ID")
+	}
+	dir := filepath.Join(storage.BaseDir, mapID)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", err
+	}
+	name := uuid.New().String() + "_" + a.name
+	if err := os.WriteFile(filepath.Join(dir, name), a.data, 0644); err != nil {
+		return "", err
+	}
+	return "/api/media/admin/" + url.PathEscape(mapID) + "/" + url.PathEscape(name), nil
 }

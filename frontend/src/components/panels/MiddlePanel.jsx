@@ -9,6 +9,7 @@ export default function MiddlePanel({ middleWidth, setMiddleWidth, isLeftOpen })
   const [selectedMedia, setSelectedMedia] = useState(null); 
   const [selectedMediaName, setSelectedMediaName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   
   const inputRef = useRef(null);
   const chatScrollRef = useRef(null);
@@ -64,6 +65,7 @@ export default function MiddlePanel({ middleWidth, setMiddleWidth, isLeftOpen })
   const submitChat = async () => {
     if (!question.trim() && !selectedMedia) return;
     setLoading(true);
+    setError("");
 
     const cachedQuestion = question;
     const cachedMedia = selectedMedia;
@@ -110,13 +112,20 @@ export default function MiddlePanel({ middleWidth, setMiddleWidth, isLeftOpen })
         };
         const res = await fetch(`${API_BASE}/maps/${mapId}/ask`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         
-        if (res.ok) { 
-            const newNode = await res.json();
-            await loadMap(mapId); 
-            setSelectedNode({ id: newNode.id }); 
-            setNodes(nds => nds.map(n => ({ ...n, selected: n.id === newNode.id })));
-        }
-    } catch (err) { console.error(err); } 
+        if (!res.ok) throw new Error((await res.text()) || 'Request failed');
+        const newNode = await res.json();
+        await loadMap(mapId);
+        const savedNode = useMapStore.getState().nodes.find(n => n.id === newNode.id);
+        setSelectedNode(savedNode || null);
+        setNodes(nds => nds.map(n => ({ ...n, selected: n.id === newNode.id })));
+    } catch (err) {
+        setNodes(nds => nds.filter(n => n.id !== tempId));
+        setEdges(eds => eds.filter(e => e.source !== tempId && e.target !== tempId));
+        setQuestion(cachedQuestion);
+        setSelectedMedia(cachedMedia);
+        setSelectedMediaName(cachedMediaName);
+        setError(err.message || 'Request failed');
+    }
     finally { setLoading(false); }
   };
 
@@ -161,6 +170,7 @@ export default function MiddlePanel({ middleWidth, setMiddleWidth, isLeftOpen })
         </div>
 
         <div style={{ padding: '15px', background: 'var(--node-bg)', borderTop: '1px solid var(--border-color)' }}>
+            {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
             {selectedMedia && (
               <div style={{ position: 'relative', marginBottom: '10px', display: 'inline-block' }}>
                   {selectedMedia.startsWith('data:image') ? (
@@ -180,7 +190,7 @@ export default function MiddlePanel({ middleWidth, setMiddleWidth, isLeftOpen })
                     style={{ width: '100%', padding: '12px 40px 12px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-dark)', color: 'var(--text-main)', resize: 'none', overflowY: 'auto', boxSizing: 'border-box' }} 
                 />
                 <label htmlFor="file-upload" style={{ position: 'absolute', right: '10px', bottom: '10px', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--text-muted)' }}>📎</label>
-                <input type="file" id="file-upload" accept="image/*, application/pdf" onChange={handleMediaUpload} style={{ display: 'none' }} />
+                <input type="file" id="file-upload" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={handleMediaUpload} style={{ display: 'none' }} />
               </div>
               <button 
                 onClick={submitChat} disabled={loading || (!question.trim() && !selectedMedia)} 

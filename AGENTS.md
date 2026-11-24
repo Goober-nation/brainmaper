@@ -15,13 +15,13 @@
 - Lint: `npm run lint`
 
 ### Backend
-- No standalone test suite identified in the repository.
+- Run tests: `cd backend && go test ./...`.
 - Backend runs inside Docker; build is handled by `docker compose`.
 
 ## Architecture Notes
 
 ### Database Discrepancy
-- **CRITICAL:** The `README.md` incorrectly claims the project uses PostgreSQL. The project actually uses **MongoDB 7**.
+- The project uses MongoDB 7. Keep the README and `.env.example` aligned with the Compose configuration.
 
 ### Data Storage
 - **Metadata:** Stored in MongoDB (nodes, edges, workspace info).

@@ -64,7 +64,7 @@ export const useMapStore = create((set, get) => ({
            style: { width: n.width || 350, height: n.is_collapsed ? 'auto' : (n.height > 0 ? n.height : 200) },
            data: { 
              question: n.data.question, answer: n.data.answer, media_base64: n.data.media_base64, 
-             media_name: n.data.media_name, is_collapsed: n.is_collapsed
+             media_name: n.data.media_name, is_collapsed: n.is_collapsed, expandedHeight: n.height > 0 ? n.height : 200
            }
          }));
         
@@ -83,7 +83,7 @@ export const useMapStore = create((set, get) => ({
       const payload = {
         x: node.position.x, y: node.position.y,
         width: stateUpdates.width || node.style?.width || 300,
-        height: stateUpdates.height || node.style?.height || 'auto',
+        height: stateUpdates.height ?? (node.data.is_collapsed ? node.data.expandedHeight : node.style?.height) ?? 200,
         is_collapsed: stateUpdates.is_collapsed !== undefined ? stateUpdates.is_collapsed : node.data.is_collapsed
       };
 
@@ -96,7 +96,7 @@ export const useMapStore = create((set, get) => ({
           if (n.id === id) {
             return {
               ...n, style: { ...n.style, width: payload.width, height: payload.is_collapsed ? 'auto' : payload.height },
-              data: { ...n.data, is_collapsed: payload.is_collapsed }
+              data: { ...n.data, is_collapsed: payload.is_collapsed, expandedHeight: payload.height }
             };
           }
           return n;
